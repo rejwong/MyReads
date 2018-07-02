@@ -5,6 +5,7 @@ import Bookshelf from './templates/Bookshelf';
 import { Route } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import Search from './templates/Search';
+import escapeRegEx from 'escape-string-regexp';
 
 class BooksApp extends React.Component {
   state = {
@@ -42,31 +43,31 @@ class BooksApp extends React.Component {
 
     // update backend to reflect the new change
     BooksAPI.update(book, shelf)
-    // then update react state
-    .then(()=>{
-      this.toggleWorking();
-
-      // update state.data by fetching a fresh list
-      BooksAPI.getAll()
-      .then(data => {
-        this.setState({data});
-        return;
-      })
-      // once the data array is up to date we can then update the search results array
-      .then(()=>{
-        this.updateSearchResults(this.state.results);
-      })
+    // then update react state.data
+    .then(() => {
+      this.setState((prevState) => {
+        let indexBook = prevState.data.findIndex(b => b.id === book.id);
+        prevState.data[indexBook].shelf = shelf
+        return {
+          data: prevState.data
+        };
+      });
     })
-    .catch(()=>(console.error('Could on update shelf')));
+    .then(() => {
+      // once the data array is up to date we can then update the search results array
+      this.updateSearchResults(this.state.results);
+      this.toggleWorking();
+    })
+    .catch(() => (console.error('Could not update shelf')));
   }
 
   // this function checks to see if any books in the home page are present in the search
   // if found then update the shelf property to refelct the correct shelf, else mark the shelf as none
   updateSearchResults(arrayToCheck){
-    if (arrayToCheck && arrayToCheck.length > 0){
-      let updatedSearch = arrayToCheck.map((book)=>{
+    if (arrayToCheck) {
+      let updatedSearch = arrayToCheck.map((book)=> {
         let matchedBook = this.state.data.find((b)=> b.id === book.id);
-        if (matchedBook){
+        if (matchedBook) {
           book.shelf = matchedBook.shelf;
         } else {
           book.shelf = 'none';
@@ -74,41 +75,39 @@ class BooksApp extends React.Component {
         return book;
       });
 
-      // updates search results state
-      // if none return an empty array
-      this.setState((prevState) => ({
-        results: updatedSearch || []
-      }));
+      // save search results to state
+      this.setState({results: updatedSearch});
     }
   }
 
   // handles queries from search bar
-  handleSearchInput = (e) => {
+  handleSearchInput = (value) => {
+
     // set search query in state
-    this.setState({
-      query: e
+    // once state fetch data
+    this.setState({query: value}, () => {
+
+      // Check if query exists
+      if(escapeRegEx(this.state.query.trim())){
+        BooksAPI.search(this.state.query.trim())
+        .then(response => {
+          if(response.length) {
+            this.updateSearchResults(response);
+          } else {
+            // if no books are returned set empty state
+            this.setState({results:[]});
+          }
+        })
+        // if fetch fails
+        .catch((response) => {
+          console.warn('Could not get results, please check connection', response.length);
+          this.setState({results:[]});
+        });
+      // if query is empty
+      } else {
+        this.setState({results:[]});
+      }
     });
-
-    let q = e.trim();
-
-    // Get search results
-    // If query is empty don't search
-    if(q.length > 1){
-      BooksAPI.search(q)
-      .then((response) => {
-        this.updateSearchResults(response);
-        return response;
-      })
-      .catch((response)=>{
-        console.log('invalid search');
-        return response;
-      });
-    } else if (q.length === 0 || q.length === 1){
-      this.setState({
-        results: []
-      })
-
-    }
   }
 
   // Get books on componentDidMount event
@@ -134,7 +133,7 @@ class BooksApp extends React.Component {
             updateShelf={this.updateShelf}
             handleInput={this.handleSearchInput}
             searchResults={this.state.results}
-            inputQuery={this.state.query}
+            query={this.state.query}
           />
         )} />
 

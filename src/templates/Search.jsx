@@ -4,21 +4,13 @@ import Book from './Book';
 
 class Search extends React.Component {
 
-  state = {
-    query: '',
-    results: []
-  }
-
   render() {
 
     let message;
+    let {query, searchResults, handleInput } = this.props;
 
-    if (this.props.inputQuery.length > 1) {
-
-      if (this.props.searchResults.length === 0 || !Array.isArray(this.props.searchResults)){
-        message = <h2 style={{opacity:0.4}} >No Results Found...</h2>;
-      }
-
+    if (query.length && !searchResults.length) {
+      message = <h2 style={{opacity:0.4}} > No Results Found...</h2>;
     } else {
       message = '';
     }
@@ -37,7 +29,7 @@ class Search extends React.Component {
                 However, remember that the BooksAPI.search method DOES search by title or author. So, don't worry if
                 you don't find a specific author or title. Every search is limited by search terms.
               */}
-              <input type="text" onChange={(e)=>{this.props.handleInput(e.target.value)}} value={this.props.inputQuery} placeholder="Search by title or author"/>
+              <input type="text" onChange={(e)=>{handleInput(e.target.value)}} value={query} placeholder="Search by title or author"/>
 
             </div>
           </div>
@@ -46,7 +38,7 @@ class Search extends React.Component {
           {message}
 
           <ol className="books-grid">
-            {this.props.searchResults.length > 0 && this.props.searchResults.map((book)=>(
+            {searchResults && searchResults.map((book)=>(
               <li key={book.id}>
                 <Book book={book} updateShelf={this.props.updateShelf}/>
               </li>
